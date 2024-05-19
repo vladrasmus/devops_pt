@@ -1,0 +1,41 @@
+CREATE USER ${DB_REPL_USER} REPLICATION LOGIN PASSWORD '${DB_REPL_PASSWORD}';
+
+CREATE DATABASE ${DB_DATABASE};
+
+\c ${DB_DATABASE};
+
+CREATE TABLE IF NOT EXISTS emails (
+    id SERIAL PRIMARY KEY,
+    email VARCHAR(255) NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS phones (
+    id SERIAL PRIMARY KEY,
+    phone_number VARCHAR(20) NOT NULL
+);
+
+INSERT INTO emails (email)
+VALUES
+    ('test1@example.com'),
+    ('test2@example.com');
+
+INSERT INTO phones (phone_number)
+VALUES
+    ('+79997771337'),
+    ('+85556667331');
+
+-- CREATE TABLE IF NOT EXISTS phone_numbers (
+--     id SERIAL PRIMARY KEY,
+--     value VARCHAR(30) NOT NULL
+-- );
+--
+-- CREATE TABLE IF NOT EXISTS emails (
+--     id SERIAL PRIMARY KEY,
+--     email VARCHAR(100) NOT NULL
+-- );
+
+ALTER USER postgres WITH PASSWORD '1';
+--CREATE USER ${DB_REPL_USER} REPLICATION LOGIN PASSWORD '${DB_REPL_PASSWORD}';
+
+
+

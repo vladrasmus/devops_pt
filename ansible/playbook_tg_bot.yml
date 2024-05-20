@@ -1,81 +1,4 @@
-#_____________________________________________________
-# БОТ
-- hosts: bot
-  vars_files:
-    - vars.yml
-  become: yes
-  gather_facts: yes
-
-  tasks:
-    - name: "Скачивание пакетов"
-      apt:
-        name:
-          - python3
-          - python3-pip
-          - git
-        state: present
-
-    - name: "Клонирование бота"
-      git:
-        repo: https://github.com/vladrasmus/devops_pt.git
-        dest: /tmp/project_cloned/
-        version: docker
-        clone: yes
-        update: yes
-        force: yes
-
-    - name: "Создание директории для бота"
-      ansible.builtin.file:
-        path: /usr/src/bot/
-        state: directory
-
-    - name: "Копирование bot.py в директорию бота"
-      copy:
-        src: /tmp/project_cloned/devops_pt/bot/bot.py
-        dest: /usr/src/bot/bot.py
-
-    - name: "Копирование monitoring.py в директорию бота"
-      copy:
-        src: /tmp/project_cloned/devops_pt/bot/monitoring.py
-        dest: /usr/src/bot/monitoring.py
-
-    - name: "Копирование db_practice.py в директорию бота"
-      copy:
-        src: /tmp/project_cloned/devops_pt/bot/db_practice.py
-        dest: /usr/src/bot/db_practice.py
-
-    - name: "Копирование requirements.txt в директорию бота"
-      copy:
-        src: /tmp/project_cloned/devops_pt/bot/requirements.txt
-        dest: /usr/src/bot/requirements.txt
-
-    - name: "Скачивание зависимостей"
-      pip:
-        requirements:  /usr/src/bot/requirements.txt
-
-    - name: "Копирование файла окружения"
-      ansible.builtin.copy:
-        src: ../.env
-        dest: /usr/src/bot/.env
-        mode: '0777'
-
-    - name: "Адрес БД в файле окружения"
-      ansible.builtin.lineinfile:
-        path: /usr/src/bot/.env
-        line: "DB_HOST={{ hostvars['db_server'].ansible_host }}"
-
-    - name: "Адрес БД-реплики в файле окружения"
-      ansible.builtin.lineinfile:
-        path: /usr/src/bot/.env
-        line: "DB_REPL_HOST={{ hostvars['db_repl_server'].ansible_host }}"
-
-    - name: "Очистка временной директории"
-      ansible.builtin.file:
-        path: /tmp/project_cloned/
-        state: absent
-        recurse: yes
-
-#_____________________________________________________
+# _____________________________________________________
 # ОСНОВНАЯ БД
 - hosts: db
   vars:
@@ -103,11 +26,6 @@
           - psycopg2
         state: present
 
-#    - name: "Устранение ошибки с EXTERNALLY-MANAGED env"
-#      ansible.builtin.file:
-#        path: /usr/lib/python3.9/EXTERNALLY-MANAGED
-#        state: absent
-
     - name: "Остановка postgresql"
       service: "name={{ item }} state=stopped"
       with_items:
@@ -126,7 +44,7 @@
     - name: "Настройка pg_hba.conf - db_repl_server"
       ansible.builtin.lineinfile:
         path: /etc/postgresql/14/main/pg_hba.conf
-        line: "host replication {{ DB_REPL_USER  }} {{ hostvars['db_repl_server'].ansible_host }}/24 scram-sha-256"
+        line: "host replication {{ DB_REPL_USER  }} {{ hostvars['db_repl_server'].ansible_host }}/24 trust"
 
     - name: "postgresql.conf"
       copy:
@@ -237,13 +155,58 @@
       ansible.builtin.debug:
         msg: Репликационная база данных сконфигурирована
 
+# _____________________________________________________
+# БОТ
 - hosts: bot
+  vars_files:
+    - vars.yml
   become: yes
   gather_facts: yes
+
   tasks:
-    - name: "Запуск бота"
-      command: python3 /usr/src/bot/bot.py
+    - name: "Скачивание пакетов"
+      apt:
+        name:
+          - python3
+          - python3-pip
+          - git
+          - postgresql
+          - libpq-dev
+        state: present
+
+    - name: "Клонирование бота"
+      git:
+        repo: https://github.com/vladrasmus/devops_pt.git
+        dest: /tmp/project_cloned/
+        version: docker
+        clone: yes
+        update: yes
+        force: yes
+
+    - name: "Скачивание зависимостей"
+      pip:
+        requirements:  /tmp/project_cloned/bot/requirements.txt
+
+    - name: "Копирование файла окружения"
+      ansible.builtin.copy:
+        src: ../.env
+        dest: /tmp/project_cloned/bot/.env
+        mode: '0777'
+
+    - name: "Адрес БД в файле окружения"
+      ansible.builtin.lineinfile:
+        path: /tmp/project_cloned/bot/.env
+        line: "DB_HOST={{ hostvars['db_server'].ansible_host }}"
+
+    - name: "Адрес БД-реплики в файле окружения"
+      ansible.builtin.lineinfile:
+        path: /tmp/project_cloned/bot/.env
+        line: "DB_REPL_HOST={{ hostvars['db_repl_server'].ansible_host }}"
 
     - name: "Сообщение о запуске бота"
       ansible.builtin.debug:
-        msg: Бот запущен
+        msg: Бот запускается...
+
+    - name: "Запуск бота"
+      command: python3 /tmp/project_cloned/bot/main.py
+

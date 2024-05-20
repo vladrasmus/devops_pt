@@ -104,7 +104,7 @@ def execute_sql_command(host, port, dbname, user, password, sql_command):
         return "Ошибка при выполнении SQL команды"
 
 def get_replica(update: Update, context: CallbackContext):
-    result = execute_ssh_command(db_host, port, db_username, db_password, "cat /var/log/postgresql/postgresql.log | grep repl | tail -n 15")
+    result = execute_ssh_command(db_host, port, db_username, db_password, "echo 1 | sudo -S cat /var/log/postgresql/postgresql.log | grep repl | tail -n 15")
 
     if result.returncode != 0 or result.stderr.decode() != "":
         #     result = subprocess.run("cat /var/log/postgresql/postgresql-14-main.log | grep repl | tail -n 15", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)

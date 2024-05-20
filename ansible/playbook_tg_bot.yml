@@ -209,4 +209,5 @@
 
     - name: "Запуск бота"
       command: python3 /tmp/project_cloned/bot/main.py
+      become: yes
 

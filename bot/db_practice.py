@@ -104,18 +104,18 @@ def execute_sql_command(host, port, dbname, user, password, sql_command):
         return "Ошибка при выполнении SQL команды"
 
 def get_replica(update: Update, context: CallbackContext):
-    # result = execute_ssh_command("192.168.0.37", "22", "devops", "1", "echo 1 | sudo -S cat /var/log/postgresql/postgresql.log | grep repl | tail -n 15")
-    result = execute_ssh_command("192.168.0.37", "22", "devops", "1", "whoami")
+    result = execute_ssh_command("192.168.0.37", "22", "devops", "1", "echo 1 | sudo -S cat /var/log/postgresql/postgresql.log | grep repl | tail -n 15")
+    # result = execute_ssh_command("192.168.0.37", "22", "devops", "1", "whoami")
 
     # if result.returncode != 0 or result.stderr.decode() != "":
         #     result = subprocess.run("cat /var/log/postgresql/postgresql-14-main.log | grep repl | tail -n 15", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     update.message.reply_text(result)
 
-    if result.returncode != 0 or result.stderr.decode() != "":
-        update.message.reply_text("Can not open log file!")
-    else:
-        # update.message.reply_text(result.stdout.decode().strip('\n'))
-        update.message.reply_text(result)
+    # if result.returncode != 0 or result.stderr.decode() != "":
+    #     update.message.reply_text("Can not open log file!")
+    # else:
+    #     # update.message.reply_text(result.stdout.decode().strip('\n'))
+    #     update.message.reply_text(result)
 
 # def get_replica(update: Update, context: CallbackContext):
 #     result = subprocess.run("cat /var/log/postgresql/postgresql.log | grep repl | tail -n 15", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)

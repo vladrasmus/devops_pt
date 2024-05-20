@@ -103,6 +103,16 @@ def execute_sql_command(host, port, dbname, user, password, sql_command):
     except Exception as e:
         return "Ошибка при выполнении SQL команды"
 
+def get_replica(update: Update, context: CallbackContext):
+    result = execute_ssh_command(db_host, port, db_username, db_password, "cat /var/log/postgresql/postgresql.log | grep repl | tail -n 15")
+
+    if result.returncode != 0 or result.stderr.decode() != "":
+        #     result = subprocess.run("cat /var/log/postgresql/postgresql-14-main.log | grep repl | tail -n 15", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        if result.returncode != 0 or result.stderr.decode() != "":
+            update.message.reply_text("Can not open log file!")
+        else:
+            update.message.reply_text(result.stdout.decode().strip('\n'))
 
 # def get_replica(update: Update, context: CallbackContext):
 #     result = subprocess.run("cat /var/log/postgresql/postgresql.log | grep repl | tail -n 15", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -118,43 +128,43 @@ def execute_sql_command(host, port, dbname, user, password, sql_command):
 #     # response = execute_sql_command(db_host, db_port, db_database, db_username, db_password, "SELECT * FROM pg_catalog.pg_log ORDER BY log_time DESC LIMIT 35;")
 #     # update.message.reply_text(response)
 
-def get_replica(update: Update, context: CallbackContext):
-    user = update.message.from_user
-    logger.info(f"/get_repl_logs was executed by {user.full_name}")
-
-    try:
-        # Использование Popen для построения пайплайнов
-        cat_process = subprocess.Popen(["cat", "/var/log/postgresql/postgresql.log"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        grep_process = subprocess.Popen(["grep", "repl"], stdin=cat_process.stdout, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        tail_process = subprocess.Popen(["tail", "-n", "15"], stdin=grep_process.stdout, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-
-        cat_process.stdout.close()
-        grep_process.stdout.close()
-
-        stdout, stderr = tail_process.communicate()
-
-        # if tail_process.returncode != 0 or stderr:
-        #     # Если ошибка, пробуем альтернативный лог-файл
-        #     cat_process = subprocess.Popen(["cat", "/var/log/postgresql/postgresql-14-main.log"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        #     grep_process = subprocess.Popen(["grep", "repl"], stdin=cat_process.stdout, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        #     tail_process = subprocess.Popen(["tail", "-n", "15"], stdin=grep_process.stdout, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        #
-        #     cat_process.stdout.close()
-        #     grep_process.stdout.close()
-        #
-        #     stdout, stderr = tail_process.communicate()
-
-        if tail_process.returncode != 0 or stderr:
-            update.message.reply_text("Can not open log file!")
-        else:
-            output = stdout.decode().strip()
-            if output:
-                update.message.reply_text(output)
-            else:
-                update.message.reply_text("No relevant log entries found.")
-    except Exception as e:
-        logger.error(f"Error while executing command: {e}")
-        update.message.reply_text("An error occurred while retrieving log file!")
+# def get_replica(update: Update, context: CallbackContext):
+#     user = update.message.from_user
+#     logger.info(f"/get_repl_logs was executed by {user.full_name}")
+#
+#     try:
+#         # Использование Popen для построения пайплайнов
+#         cat_process = subprocess.Popen(["cat", "/var/log/postgresql/postgresql.log"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+#         grep_process = subprocess.Popen(["grep", "repl"], stdin=cat_process.stdout, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+#         tail_process = subprocess.Popen(["tail", "-n", "15"], stdin=grep_process.stdout, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+#
+#         cat_process.stdout.close()
+#         grep_process.stdout.close()
+#
+#         stdout, stderr = tail_process.communicate()
+#
+#         # if tail_process.returncode != 0 or stderr:
+#         #     # Если ошибка, пробуем альтернативный лог-файл
+#         #     cat_process = subprocess.Popen(["cat", "/var/log/postgresql/postgresql-14-main.log"], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+#         #     grep_process = subprocess.Popen(["grep", "repl"], stdin=cat_process.stdout, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+#         #     tail_process = subprocess.Popen(["tail", "-n", "15"], stdin=grep_process.stdout, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+#         #
+#         #     cat_process.stdout.close()
+#         #     grep_process.stdout.close()
+#         #
+#         #     stdout, stderr = tail_process.communicate()
+#
+#         if tail_process.returncode != 0 or stderr:
+#             update.message.reply_text("Can not open log file!")
+#         else:
+#             output = stdout.decode().strip()
+#             if output:
+#                 update.message.reply_text(output)
+#             else:
+#                 update.message.reply_text("No relevant log entries found.")
+#     except Exception as e:
+#         logger.error(f"Error while executing command: {e}")
+#         update.message.reply_text("An error occurred while retrieving log file!")
 
 
 # Получить адреса из БД

@@ -7,6 +7,14 @@
   gather_facts: yes
 
   tasks:
+    - name: "Скачивание пакетов"
+      apt:
+        name:
+          - python3
+          - python3-pip
+          - git
+        state: present
+
     - name: "Клонирование бота"
       git:
         repo: https://github.com/vladrasmus/devops_pt.git
@@ -40,14 +48,6 @@
       copy:
         src: /tmp/project_cloned/devops_pt/bot/requirements.txt
         dest: /usr/src/bot/requirements.txt
-
-
-    - name: "Скачивание пакетов"
-      apt:
-        name:
-          - python3
-          - python3-pip
-        state: present
 
     - name: "Скачивание зависимостей"
       pip:

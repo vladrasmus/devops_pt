@@ -109,6 +109,7 @@ def get_replica(update: Update, context: CallbackContext):
 
     # if result.returncode != 0 or result.stderr.decode() != "":
         #     result = subprocess.run("cat /var/log/postgresql/postgresql-14-main.log | grep repl | tail -n 15", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    update.message.reply_text(result)
 
     if result.returncode != 0 or result.stderr.decode() != "":
         update.message.reply_text("Can not open log file!")

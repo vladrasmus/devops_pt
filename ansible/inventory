@@ -1,0 +1,8 @@
+[bot]
+bot_server ansible_host=192.168.0.38 ansible_connection=ssh ansible_user=ansible ansible_password=1
+
+[db]
+db_server ansible_host=192.168.0.37 ansible_connection=ssh ansible_user=ansible ansible_password=1
+
+[db_repl]
+db_repl_server ansible_host=192.168.0.36 ansible_connection=ssh ansible_user=ansible ansible_password=1

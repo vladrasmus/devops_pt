@@ -1,0 +1,249 @@
+#_____________________________________________________
+# БОТ
+- hosts: bot
+  vars_files:
+    - vars.yml
+  become: yes
+  gather_facts: yes
+
+  tasks:
+    - name: "Клонирование бота"
+      git:
+        repo: https://github.com/vladrasmus/devops_pt.git
+        dest: /tmp/project_cloned/
+        version: docker
+        clone: yes
+        update: yes
+        force: yes
+
+    - name: "Создание директории для бота"
+      ansible.builtin.file:
+        path: /usr/src/bot/
+        state: directory
+
+    - name: "Копирование bot.py в директорию бота"
+      copy:
+        src: /tmp/project_cloned/devops_pt/bot/bot.py
+        dest: /usr/src/bot/bot.py
+
+    - name: "Копирование monitoring.py в директорию бота"
+      copy:
+        src: /tmp/project_cloned/devops_pt/bot/monitoring.py
+        dest: /usr/src/bot/monitoring.py
+
+    - name: "Копирование db_practice.py в директорию бота"
+      copy:
+        src: /tmp/project_cloned/devops_pt/bot/db_practice.py
+        dest: /usr/src/bot/db_practice.py
+
+    - name: "Копирование requirements.txt в директорию бота"
+      copy:
+        src: /tmp/project_cloned/devops_pt/bot/requirements.txt
+        dest: /usr/src/bot/requirements.txt
+
+
+    - name: "Скачивание пакетов"
+      apt:
+        name:
+          - python3
+          - python3-pip
+        state: present
+
+    - name: "Скачивание зависимостей"
+      pip:
+        requirements:  /usr/src/bot/requirements.txt
+
+    - name: "Копирование файла окружения"
+      ansible.builtin.copy:
+        src: ../.env
+        dest: /usr/src/bot/.env
+        mode: '0777'
+
+    - name: "Адрес БД в файле окружения"
+      ansible.builtin.lineinfile:
+        path: /usr/src/bot/.env
+        line: "DB_HOST={{ hostvars['db_server'].ansible_host }}"
+
+    - name: "Адрес БД-реплики в файле окружения"
+      ansible.builtin.lineinfile:
+        path: /usr/src/bot/.env
+        line: "DB_REPL_HOST={{ hostvars['db_repl_server'].ansible_host }}"
+
+    - name: "Очистка временной директории"
+      ansible.builtin.file:
+        path: /tmp/project_cloned/
+        state: absent
+        recurse: yes
+
+#_____________________________________________________
+# ОСНОВНАЯ БД
+- hosts: db
+  vars:
+    allow_world_readable_tmpfiles: true
+  vars_files:
+    - vars.yml
+  become: yes
+  gather_facts: yes
+
+  tasks:
+    - name: "Скачивание пакетов"
+      apt:
+        name:
+          - postgresql
+          - postgresql-contrib
+          - python3
+          - python3-pip
+          - acl
+          - libpq-dev
+        state: present
+
+    - name: "Скачивание зависимостей"
+      pip:
+        name:
+          - psycopg2
+        state: present
+
+#    - name: "Устранение ошибки с EXTERNALLY-MANAGED env"
+#      ansible.builtin.file:
+#        path: /usr/lib/python3.9/EXTERNALLY-MANAGED
+#        state: absent
+
+    - name: "Остановка postgresql"
+      service: "name={{ item }} state=stopped"
+      with_items:
+        - postgresql
+
+    - name: "pg_hba.conf"
+      copy:
+        src: ./pg_hba.conf
+        dest: /etc/postgresql/14/main/pg_hba.conf
+
+    - name: "Настройка pg_hba.conf - bot_server"
+      ansible.builtin.lineinfile:
+        path: /etc/postgresql/14/main/pg_hba.conf
+        line: "host all all {{ hostvars['bot_server'].ansible_host }}/24 password"
+
+    - name: "Настройка pg_hba.conf - db_repl_server"
+      ansible.builtin.lineinfile:
+        path: /etc/postgresql/14/main/pg_hba.conf
+        line: "host replication {{ DB_REPL_USER  }} {{ hostvars['db_repl_server'].ansible_host }}/24 scram-sha-256"
+
+    - name: "postgresql.conf"
+      copy:
+        src: ./config-postgresql
+        dest: /etc/postgresql/14/main/postgresql.conf
+
+    - name: "Старт postgresql"
+      service: "name={{ item }} state=started enabled=yes"
+      with_items:
+        - postgresql
+
+    - name: "Создание БД"
+      postgresql_db:
+        state: present
+        name: "{{ DB_DATABASE }}"
+      become: yes
+      become_user: postgres
+
+    - name: "Создание таблицы emails"
+      postgresql_table:
+        db: "{{ DB_DATABASE }}"
+        table: "emails"
+        columns:
+        - id SERIAL PRIMARY KEY
+        - email VARCHAR(255) NOT NULL
+      become: yes
+      become_user: postgres
+
+    - name: "Создание таблицы phones"
+      postgresql_table:
+        db: "{{ DB_DATABASE }}"
+        table: "phones"
+        columns:
+        - id SERIAL PRIMARY KEY
+        - phone_number VARCHAR(20) NOT NULL
+      become: yes
+      become_user: postgres
+
+    - name: "Создание пользователя БД"
+      postgresql_user:
+        state: present
+        name: "{{ DB_USER }}"
+        password: "{{ DB_PASSWORD }}"
+      become: yes
+      become_user: postgres
+
+    - name: "Предоставление прав пользователю БД"
+      postgresql_privs:
+        type: database
+        database: "{{ DB_DATABASE }}"
+        roles: "{{ DB_USER }}"
+        grant_option: no
+        privs: all
+      become: yes
+      become_user: postgres
+
+    - name: "Создание пользователя для репликации"
+      shell: sudo -u postgres psql -c "CREATE USER {{ DB_REPL_USER }} REPLICATION LOGIN ENCRYPTED PASSWORD '{{ DB_REPL_PASSWORD }}';"
+
+    - name: "Создание директории для архивов"
+      file:
+        path: /oracle/pg_data/archive
+        state: directory
+        recurse: yes
+        owner: postgres
+        group: postgres
+
+    - name: "Сообщение об окончании настройки"
+      ansible.builtin.debug:
+        msg: База данных сконфигурирована
+
+#_____________________________________________________
+# РЕПЛИКАЦИЯ
+- hosts: db_repl
+  vars_files:
+    - vars.yml
+  become: yes
+  gather_facts: yes
+  tasks:
+    - name: "Установка пакетов"
+      apt:
+        name:
+          - postgresql
+          - postgresql-contrib
+          - python3
+        state: present
+
+    - name: "Остановка службы PostgreSQL"
+      service: "name={{ item }} state=stopped"
+      with_items:
+        - postgresql
+
+    - name: "Очистка конфигурации PostgreSQL"
+      shell: /bin/rm -rf /etc/postgresql/14/main/*
+
+    - name: "Копирование файла pgpass"
+      copy:
+        src: ./pgpass
+        dest: /var/lib/postgresql/.pgpass
+        owner: postgres
+        group: postgres
+        mode: '0600'
+
+    - name: "Настройка реплики базы данных"
+      command: su postgres -c "pg_basebackup -R -h {{ hostvars['db_server'].ansible_host }} -U {{ DB_REPL_USER }} -D /etc/postgresql/14/main/ -P"
+
+    - name: "Окончание репликации"
+      ansible.builtin.debug:
+        msg: Репликационная база данных сконфигурирована
+
+- hosts: bot
+  become: yes
+  gather_facts: yes
+  tasks:
+    - name: "Запуск бота"
+      command: python3 /usr/src/bot/bot.py
+
+    - name: "Сообщение о запуске бота"
+      ansible.builtin.debug:
+        msg: Бот запущен

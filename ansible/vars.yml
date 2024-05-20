@@ -1,0 +1,14 @@
+RM_HOST: "192.168.0.35"
+RM_USER: "kali"
+RM_PASSWORD: "1"
+RM_PORT: 22
+
+DB_USER: "postgres"
+DB_PASSWORD: "1"
+DB_DATABASE: "db_practice"
+DB_PORT: 5432
+
+DB_REPL_USER: "db_repl_user"
+DB_REPL_PASSWORD: "1"
+DB_REPL_PORT: 5432
+
